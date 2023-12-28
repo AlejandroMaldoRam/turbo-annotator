@@ -11,6 +11,7 @@ import base64
 from PIL import Image
 import os
 import json
+from pprint import pprint
 
 from SAMDetector import SAMDetector
 
@@ -139,7 +140,14 @@ def display_image(n_clicks_next, n_clicks_prev, files_data):
         else:
             index = 0
         image = cv2.imread(files_list[index])
-        _, buffer = cv2.imencode('.jpg', image)
+
+        # get object candidates
+        detections = detector.detect(image)
+        #print("Objects:\n", detections)
+
+        # draw detections
+        detections_results = detector.draw_results(image, detections)
+        _, buffer = cv2.imencode('.jpg', detections_results)
         jpg_as_text = base64.b64encode(buffer.tobytes())
         dataURI = 'data:image/jpeg;base64,' + str(jpg_as_text, 'ascii')
         return [html.P("Image {}".format(files_list[index])),

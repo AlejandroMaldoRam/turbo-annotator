@@ -44,11 +44,34 @@ class SAMDetector:
 
             rotated_rect = cv2.minAreaRect(contour)
             rect = cv2.boundingRect(contour)
-            area = rect[1][0]*rect[1][1]
+            #print("rect: ", rect)
+            #print("rrect: ", rotated_rect)
+            area = rect[0]*rect[1]
             result = {'rotated_rect':rotated_rect, 'rect': rect, 'min_area': area}
             results.append(result)
         
         # sort rectangles by area
-        results = sorted(result, key=lambda x: x['area'], reverse=True)
+        results = sorted(results, key=lambda x: x['min_area'], reverse=True)
 
         return results
+    
+    """
+    This function draws the detected objects in the input image
+    """
+    def draw_results(self, image, results):
+        BB_COLOR_1 = (16,164,14)
+        BB_COLOR_2 = (13,112,218)
+        BB_FONT = cv2.FONT_HERSHEY_DUPLEX
+        FONT_SCALE = 0.5
+        print(results)
+        for r in results:
+            print(r)
+            rect = r['rotated_rect']
+            #score = r[2]
+            #BB_COLOR = BB_COLOR_1 if score>0.5 else BB_COLOR_2
+            box = cv2.boxPoints(rect)
+            box = np.intp(box)
+            image = cv2.drawContours(image, [box], 0, BB_COLOR_1, 2)
+            
+            #image = cv2.putText(image, "{}".format(label), box[0], cv2.FONT_HERSHEY_COMPLEX, 0.5, (255,255,0), 1)
+        return image
