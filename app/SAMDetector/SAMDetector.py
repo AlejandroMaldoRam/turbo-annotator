@@ -7,12 +7,16 @@ import cv2
 
 class SAMDetector:
     def __init__(self, sam_model_dir, sam_model_type, device='cuda') -> None:
-        
+        self.initialize_model(sam_model_dir, sam_model_type, device)
+
+    """
+    This method initialze SAM.
+    """
+    def initialize_model(self, sam_model_dir, sam_model_type, device='cuda'):
         # Initialize SAM
         self.sam = sam_model_registry[sam_model_type](checkpoint=sam_model_dir)
         self.sam.to(device=device)
         self.mask_generator = SamAutomaticMaskGenerator(self.sam)
-
 
     """
     This function returns a list of dictionaries with the detected objects.
