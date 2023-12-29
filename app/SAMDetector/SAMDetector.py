@@ -47,7 +47,7 @@ class SAMDetector:
             rect = cv2.boundingRect(contour)
             #print("rect: ", rect)
             #print("rrect: ", rotated_rect)
-            area = rect[0]*rect[1]
+            area = rect[2]*rect[3]
             result = {'rotated_rect':rotated_rect, 'rect': rect, 'min_area': area}
             results.append(result)
         

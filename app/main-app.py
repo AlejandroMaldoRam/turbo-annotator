@@ -51,13 +51,13 @@ app.layout = html.Div([
     html.Div([
         dbc.Row([
             dbc.Col([
-                dbc.Row(html.Div(id='current-img-div')),
                 dbc.Row([
                     dbc.ButtonGroup([dbc.Button("Prev", id='prev-img-button'), dbc.Button("Save", id='save-img-button'), dbc.Button("Next", id='next-img-button')])
                 ]),
                 dbc.Row([
                     dbc.Progress(id='img-progress')
                 ]),
+                dbc.Row(html.Div(id='current-img-div')),
                 dbc.Row([
                     dbc.Card(
                         dbc.CardBody([
@@ -68,13 +68,13 @@ app.layout = html.Div([
                 ])
             ]),
             dbc.Col([
-                dbc.Row(html.Div(id='current-object-div')),
                 dbc.Row([
                     dbc.ButtonGroup([dbc.Button("Prev", id='prev-obj-button'), dbc.Button("Save", id='save-obj-button'), dbc.Button("Next", id='next-obj-button')])
                 ]),
                 dbc.Row([
                     dbc.Progress(id='obj-progress')
                 ]),
+                dbc.Row(html.Div(id='current-object-div')),
                 dbc.Row([
                     dbc.Card(
                         dbc.CardBody([
@@ -121,6 +121,7 @@ def open_folder(folder_addr):
     Output('current-img-div', 'children'),
     Output('obj-info-div', 'children'),
     Output('objects-storage', 'data'),
+    Output('img-progress', 'value'),
     Input('next-img-button', 'n_clicks'),
     Input('prev-img-button', 'n_clicks'),
     State('files-storage', 'data')
@@ -150,18 +151,21 @@ def display_image(n_clicks_next, n_clicks_prev, files_data):
         _, buffer = cv2.imencode('.jpg', detections_results)
         jpg_as_text = base64.b64encode(buffer.tobytes())
         dataURI = 'data:image/jpeg;base64,' + str(jpg_as_text, 'ascii')
+        progress_img = int(index/n_images*100)
         
         # ensamble results
         return [[html.P("Image {}".format(files_list[index])),
                 html.Img(src=dataURI)], 
                 [html.H5("Detected objects: "),
                  html.P("{}".format(len(detections)))],
-                 json.dumps(detections)]
+                 json.dumps(detections),
+                 progress_img]
     else:
-        return ["No images", "No objects detected", None]
+        return ["No images", "No objects detected", None, 0]
 
 @app.callback(
     Output('current-object-div', 'children'),
+    Output('obj-progress', 'value'),
     Input('next-obj-button', 'n_clicks'),
     Input('prev-obj-button', 'n_clicks'),
     State('objects-storage', 'data')
@@ -190,11 +194,12 @@ def display_object(n_clicks_next, n_clicks_prev, objects_data):
         _, buffer = cv2.imencode('.jpg', detected_object)
         jpg_as_text = base64.b64encode(buffer.tobytes())
         dataURI = 'data:image/jpeg;base64,' + str(jpg_as_text, 'ascii')
+        progress_obj = int(index/n_objects*100)
         
         # ensamble results
-        return html.Img(src=dataURI)
+        return [html.Img(src=dataURI), progress_obj]
     else:
-        return "No objects"
+        return ["No objects", 0]
 
 if __name__ == '__main__':
     app.run(debug=True)
