@@ -89,7 +89,8 @@ app.layout = html.Div([
     dcc.Store(id='files-storage'),
     dcc.Store(id='labels-storage'),
     dcc.Store(id='current-img-storage'),
-    dcc.Store(id='current-obj-storage')
+    dcc.Store(id='current-obj-storage'),
+    dcc.Store(id='objects-storage')
 ])
 
 #-------------BACKEND---------------
@@ -118,6 +119,8 @@ def open_folder(folder_addr):
 
 @app.callback(
     Output('current-img-div', 'children'),
+    Output('obj-info-div', 'children'),
+    Output('objects-storage', 'data'),
     Input('next-img-button', 'n_clicks'),
     Input('prev-img-button', 'n_clicks'),
     State('files-storage', 'data')
@@ -131,30 +134,67 @@ def display_image(n_clicks_next, n_clicks_prev, files_data):
         n_prev = n_clicks_prev if n_clicks_prev is not None else 0
         print("Next: ", n_next)
         print("Prev: ", n_prev)
-        #if n_clicks_next is None:
-        #    index=0
-        #elif n_clicks_prev is not None:
         dif = n_next - n_prev
         if dif>=0:
             index = min(n_images-1, dif)
         else:
             index = 0
         image = cv2.imread(files_list[index])
+        cv2.imwrite("tmp.png", image)
 
         # get object candidates
         detections = detector.detect(image)
-        #print("Objects:\n", detections)
 
         # draw detections
         detections_results = detector.draw_results(image, detections)
         _, buffer = cv2.imencode('.jpg', detections_results)
         jpg_as_text = base64.b64encode(buffer.tobytes())
         dataURI = 'data:image/jpeg;base64,' + str(jpg_as_text, 'ascii')
-        return [html.P("Image {}".format(files_list[index])),
-                html.Img(src=dataURI)]
+        
+        # ensamble results
+        return [[html.P("Image {}".format(files_list[index])),
+                html.Img(src=dataURI)], 
+                [html.H5("Detected objects: "),
+                 html.P("{}".format(len(detections)))],
+                 json.dumps(detections)]
     else:
-        return "No images"
-    
+        return ["No images", "No objects detected", None]
+
+@app.callback(
+    Output('current-object-div', 'children'),
+    Input('next-obj-button', 'n_clicks'),
+    Input('prev-obj-button', 'n_clicks'),
+    State('objects-storage', 'data')
+)
+def display_object(n_clicks_next, n_clicks_prev, objects_data):
+    if objects_data:
+        objects_list = json.loads(objects_data)
+        n_objects = len(objects_list)
+        index=0
+        n_next = n_clicks_next if n_clicks_next is not None else 0
+        n_prev = n_clicks_prev if n_clicks_prev is not None else 0
+        print("Next: ", n_next)
+        print("Prev: ", n_prev)
+        dif = n_next - n_prev
+        if dif>=0:
+            index = min(n_objects-1, dif)
+        else:
+            index = 0
+        
+        detection = objects_list[index]
+        print("Objects: ", detection)
+
+        image = cv2.imread("tmp.png")
+        detected_object = detector.extract_object(image, detection)
+
+        _, buffer = cv2.imencode('.jpg', detected_object)
+        jpg_as_text = base64.b64encode(buffer.tobytes())
+        dataURI = 'data:image/jpeg;base64,' + str(jpg_as_text, 'ascii')
+        
+        # ensamble results
+        return html.Img(src=dataURI)
+    else:
+        return "No objects"
 
 if __name__ == '__main__':
     app.run(debug=True)
