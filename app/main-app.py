@@ -37,7 +37,7 @@ app.layout = html.Div([
     html.Div([
         html.H3("Annotator config."),
         dbc.InputGroup([
-            dbc.InputGroupText("Folder with raw images (Glob format): "), dbc.Input(placeholder='Folder dir.', id='folder-input')
+            dbc.InputGroupText("Folder with detection file: "), dbc.Input(placeholder='Folder dir.', id='folder-input')
         ]),
         dbc.InputGroup([
             dbc.DropdownMenu([
