@@ -24,8 +24,8 @@ if __name__ == '__main__':
 
     # Process each image from the dataset
     all_detections = []
-    offset = 5
-    end = 10
+    offset = 250
+    end = 390
     for i, f in enumerate(files[offset:], start=offset):
         if i == end:
             break
