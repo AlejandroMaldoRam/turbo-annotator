@@ -34,9 +34,8 @@ if __name__ == '__main__':
         detections = detector.detect(image)
         all_detections.append({'image_addr':f, 'detections':detections})
         
-    # Save results
-    #output_addr = "/".join(base_addr.split("/")[:-1])+"/detections.json"
-        output_addr = "detections.json"
+    
+    output_addr = "detections.json"
     if os.path.exists(output_addr):
         f = open(output_addr, 'r')
         initial_list = json.load(f)
