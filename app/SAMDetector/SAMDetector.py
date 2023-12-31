@@ -64,9 +64,9 @@ class SAMDetector:
         BB_COLOR_2 = (13,112,218)
         BB_FONT = cv2.FONT_HERSHEY_DUPLEX
         FONT_SCALE = 0.5
-        print(results)
+        #print(results)
         for r in results:
-            print(r)
+            #print(r)
             rect = r['rotated_rect']
             #score = r[2]
             #BB_COLOR = BB_COLOR_1 if score>0.5 else BB_COLOR_2

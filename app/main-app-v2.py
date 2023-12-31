@@ -32,11 +32,6 @@ ids = df_labels['ID'].tolist()
 detections_list = []
 print("Ready.")
 
-output_annotations_files = "annotations.json"
-annotations_list = []
-if os.path.exists(output_annotations_files):
-    with open(output_annotations_files, 'r') as f:
-        annotations_list = json.load(f)
 
 
 #--------------FRONTEND-------------
@@ -94,6 +89,9 @@ app.layout = html.Div([
                 ])
                 ])
             ])
+        ]),
+        dbc.Row([
+            html.P("Last saved: Never", id='last-saved-p')
         ])
     ]),
     dcc.Store(id='detections-storage'),
@@ -133,8 +131,10 @@ def open_folder(folder_addr):
         if os.path.exists(annotations_path):
             with open(annotations_path, 'r') as f:
                 annotations_list = json.load(f)
+                print("Annotations files opened!")
         else:
             annotations_list = detections_list
+            print("There are no previous annotations")
         
         if n_images>0:
             result = [html.H5("Images in dataset: "), html.P("{}".format(n_images))]
@@ -228,7 +228,7 @@ def display_object(n_clicks_next, n_clicks_prev, detections_json, current_img_js
                 index = 0
             
             detection = detections[index]
-            print("Object: ", detection)
+            #print("Object: ", detection)
             current_label = detection.get('class_name', 'No class selected')
 
             image = cv2.imread(detections_list[current_img]['image_addr'])
@@ -271,6 +271,29 @@ def label_object(value, annotations_json, current_img_json, current_obj_json):
             return ["Current label: --", json.dumps(annotations_list)]    
     else:
         return ["Current label: --", None]
+    
+@app.callback(
+    Output('last-saved-p', 'children'),
+    Input('save-img-button', 'n_clicks'),
+    Input('save-obj-button', 'n_clicks'),
+    State('annotations-storage', 'data'),
+    State('folder-input', 'value')
+)
+def save_annotations(n_clicks_img, n_clicks_obj, annotations_json, folder_addr):
+    if annotations_json:
+        annotations_list = json.loads(annotations_json)
+        n_img = n_clicks_img if n_clicks_img else 0
+        n_obj = n_clicks_obj if n_clicks_obj else 0
+        if n_img>0 or n_obj>0:
+            annotations_path = "/".join(folder_addr.split("/")[:-1])+"/annotations.json"
+            with open(annotations_path, "w") as f:
+                json.dump(annotations_list, f, indent=4)
+            last_saved = datetime.datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
+            return "Last saved: {}".format(last_saved)
+        else:
+            return "Last saved: Never"
+    else:
+        return "Last saved: Never"
 
 if __name__ == '__main__':
     app.run(debug=True)
