@@ -25,11 +25,19 @@ device = 'cuda'
 #detector = TemplateProductDetector("/home/amaldonado/Code/cv-order-validation/dataset/ds1/train", "/home/amaldonado/Code/sam-test/models/sam_vit_b_01ec64.pth","vit_b","/home/amaldonado/Code/cv-order-validation/models/mobilenet_v3_large.tflite")
 detector = SAMDetector.SAMDetector("/home/amaldonado/Code/sam-test/models/sam_vit_l_0b3195.pth","vit_l")
 print("Loading catalog...")
-df_labels = pd.read_csv("/home/amaldonado/Code/cv-order-validation/dataset/ds1/train/labels.csv")
-df_labels['name'] = df_labels['Producto']+'|'+df_labels['Marca']+ '|'+df_labels['Empaque']
+df_labels = pd.read_csv("/home/amaldonado/Datasets/MB/DS1/labels.csv")
+df_labels['name'] = df_labels['ID'].astype('str')+'|'+df_labels['Producto']+'|'+df_labels['Marca']+ '|'+df_labels['Empaque']
 names = df_labels['name'].tolist()
+ids = df_labels['ID'].tolist()
 detections_list = []
 print("Ready.")
+
+output_annotations_files = "annotations.json"
+annotations_list = []
+if os.path.exists(output_annotations_files):
+    with open(output_annotations_files, 'r') as f:
+        annotations_list = json.load(f)
+
 
 #--------------FRONTEND-------------
 app.layout = html.Div([
@@ -58,7 +66,9 @@ app.layout = html.Div([
                         ])
                     )
                 ])
-            ]),
+            ])
+        ]),
+        dbc.Row([
             dbc.Col([
                 dbc.Row([
                     dbc.ButtonGroup([dbc.Button("Prev", id='prev-obj-button'), dbc.Button("Save", id='save-obj-button'), dbc.Button("Next", id='next-obj-button')])
@@ -66,8 +76,15 @@ app.layout = html.Div([
                 dbc.Row([
                     dbc.Progress(id='obj-progress')
                 ]),
-                dbc.Row(html.Div(id='current-object-div')),
                 dbc.Row([
+                    dcc.Dropdown(options=names, id='label-dropdown')
+                ]),
+                dbc.Row([
+                    html.P("Current label: -", id='label-p')
+                ]),
+                dbc.Row([
+                    dbc.Col(html.Div(id='current-object-div')),
+                    dbc.Col([
                     dbc.Card(
                         dbc.CardBody([
                             html.H4("About the object"),
@@ -75,21 +92,35 @@ app.layout = html.Div([
                         ])
                     )
                 ])
+                ])
             ])
         ])
     ]),
     dcc.Store(id='detections-storage'),
     dcc.Store(id='labels-storage'),
-    dcc.Store(id='current-img-storage')
+    dcc.Store(id='current-img-storage'),
+    dcc.Store(id='current-obj-storage'),
+    dcc.Store(id='annotations-storage')
 ])
 
 #-------------BACKEND---------------
+
+def resize_strip_to_width(image, width):
+    h,w,c = image.shape
+    if w > width:
+        ratio = width/w
+        new_image = cv2.resize(image, (0,0), fx=ratio, fy=ratio)
+        return new_image
+    else:
+        return image
 
 
 @app.callback(
     Output('image-info-div', 'children'),
     Output('detections-storage', 'data'),
-    Input('folder-input', 'value')
+    Output('annotations-storage', 'data', allow_duplicate=True),
+    Input('folder-input', 'value'),
+    prevent_initial_call=True
 )
 def open_folder(folder_addr):
     if folder_addr is not None:
@@ -97,15 +128,22 @@ def open_folder(folder_addr):
         detections_list = json.load(f)
         f.close()
         n_images = len(detections_list)
+
+        annotations_path = "/".join(folder_addr.split("/")[:-1])+"/annotations.json"
+        if os.path.exists(annotations_path):
+            with open(annotations_path, 'r') as f:
+                annotations_list = json.load(f)
+        else:
+            annotations_list = detections_list
         
         if n_images>0:
             result = [html.H5("Images in dataset: "), html.P("{}".format(n_images))]
             
-            return [result, json.dumps(detections_list)]
+            return [result, json.dumps(detections_list), json.dumps(annotations_list)]
         else:
-            return ["Images not found.", None]
+            return ["Images not found.", None, None]
     else:
-        return ["Not valid address.", None]
+        return ["Not valid address.", None, None]
 
 @app.callback(
     Output('current-img-div', 'children'),
@@ -114,7 +152,8 @@ def open_folder(folder_addr):
     Output('current-img-storage', 'data'),
     Input('next-img-button', 'n_clicks'),
     Input('prev-img-button', 'n_clicks'),
-    State('detections-storage', 'data')
+    State('detections-storage', 'data'),
+    prevent_initial_call=True
 )
 def display_image(n_clicks_next, n_clicks_prev, detections_json):
     if detections_json:
@@ -161,10 +200,13 @@ def display_image(n_clicks_next, n_clicks_prev, detections_json):
 @app.callback(
     Output('current-object-div', 'children'),
     Output('obj-progress', 'value'),
+    Output('current-obj-storage', 'data'),
+    Output('label-p', 'children', allow_duplicate=True),
     Input('next-obj-button', 'n_clicks'),
     Input('prev-obj-button', 'n_clicks'),
-    State('detections-storage', 'data'),
-    State('current-img-storage', 'data')
+    State('annotations-storage', 'data'),
+    State('current-img-storage', 'data'),
+    prevent_initial_call=True
 )
 def display_object(n_clicks_next, n_clicks_prev, detections_json, current_img_json):
     if detections_json:
@@ -187,9 +229,12 @@ def display_object(n_clicks_next, n_clicks_prev, detections_json, current_img_js
             
             detection = detections[index]
             print("Object: ", detection)
+            current_label = detection.get('class_name', 'No class selected')
 
             image = cv2.imread(detections_list[current_img]['image_addr'])
             detected_object = detector.extract_object(image, detection)
+            detected_object = resize_strip_to_width(detected_object, 600)
+
 
             _, buffer = cv2.imencode('.jpg', detected_object)
             jpg_as_text = base64.b64encode(buffer.tobytes())
@@ -197,11 +242,35 @@ def display_object(n_clicks_next, n_clicks_prev, detections_json, current_img_js
             progress_obj = int(index/n_objects*100)
             
             # ensamble results
-            return [html.Img(src=dataURI), progress_obj]
+            return [html.Img(src=dataURI, height=600), progress_obj, json.dumps([index]), current_label]
         else:
-            return ["No objects", 0]    
+            return ["No objects", 0, json.dumps([-1]), "Current label: ---"]    
     else:
-        return ["No objects", 0]
+        return ["No objects", 0, json.dumps([-1]), "Current label: ---"]
+    
+@app.callback(
+    Output('label-p', 'children', allow_duplicate=True),
+    Output('annotations-storage', 'data', allow_duplicate=True),
+    Input('label-dropdown', 'value'),
+    State('annotations-storage', 'data'),
+    State('current-img-storage', 'data'),
+    State('current-obj-storage', 'data'),
+    prevent_initial_call=True
+)
+def label_object(value, annotations_json, current_img_json, current_obj_json):
+    if annotations_json:
+        current_img = json.loads(current_img_json)[0]
+        current_obj = json.loads(current_obj_json)[0]
+        annotations_list = json.loads(annotations_json)
+        if current_img != -1 and current_obj != -1:
+            print("Value: ", value)
+            annotations_list[current_img]['detections'][current_obj]['class_id'] = int(value.split('|')[0])
+            annotations_list[current_img]['detections'][current_obj]['class_name'] = value
+            return ["Current label: {}".format(value), json.dumps(annotations_list)]    
+        else:
+            return ["Current label: --", json.dumps(annotations_list)]    
+    else:
+        return ["Current label: --", None]
 
 if __name__ == '__main__':
     app.run(debug=True)
