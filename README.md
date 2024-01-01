@@ -12,3 +12,5 @@ Personal project for helping me to annotate images for object detection and obje
 * The most time consuming process in SAM when using automatic mask generator is the evaluation of several prompts. 
     * For automaks it takes 7.5s for an image.
     * Using a prompt it takes 1.7s for encoding and 0.04s for decoding a prompt.
+
+* I tweak some parameters in the SAM detector (points per side) and reduce processing time by half without significat decrease in performance for detecting objects.

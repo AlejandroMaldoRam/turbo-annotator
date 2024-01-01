@@ -17,7 +17,7 @@ class SAMDetector:
         # Initialize SAM
         self.sam = sam_model_registry[sam_model_type](checkpoint=sam_model_dir)
         self.sam.to(device=device)
-        self.mask_generator = SamAutomaticMaskGenerator(self.sam)
+        self.mask_generator = SamAutomaticMaskGenerator(self.sam, points_per_side=16, box_nms_thresh=0.7)
         self.predictor = SamPredictor(self.sam)
 
 

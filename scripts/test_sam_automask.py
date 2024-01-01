@@ -18,8 +18,7 @@ if __name__ == '__main__':
     detector = SAMDetector.SAMDetector("/home/amaldonado/Code/sam-test/models/sam_vit_l_0b3195.pth","vit_l")
     
     # Read image
-    img_addr = "/home/amaldonado/Datasets/MB/DS1/img_0.jpg"
-
+    img_addr = "/home/amaldonado/Datasets/MB/DS1/img_167.jpg"
     # Process image with automatica mask
     image = cv2.imread(img_addr)
     t0 = time.time()
